@@ -1,4 +1,4 @@
-package healthcare.cellumed.ble_test2;
+package healthcare.cellumed.ble_test2.BluetoothLE;
 
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
@@ -11,8 +11,6 @@ import android.os.Message;
 import android.util.Log;
 
 import java.lang.reflect.Method;
-import java.net.ConnectException;
-import java.util.Map;
 
 import static android.bluetooth.BluetoothDevice.TRANSPORT_LE;
 
@@ -70,6 +68,26 @@ public class BluetoothLE {
     }
     private DeviceBluetoothLE getDeviceBluetoothLE(){
         return mDeviceBluetoothLE;
+    }
+
+    public String getDeviceKey() {
+        return mDeviceBluetoothLE.getKey();
+    }
+
+    public String getDeviceName() {
+        return mDeviceBluetoothLE.getName();
+    }
+
+    public BluetoothLEConnectState getConnectState() {
+        return mBluetoothLEConnectState;
+    }
+
+    public DeviceBluetoothLE getDevice() {
+        return mDeviceBluetoothLE;
+    }
+
+    public BluetoothGatt getmBluetoothGatt(){
+        return mBluetoothGatt;
     }
 
     private synchronized boolean refreshDeviceCache() {
@@ -184,7 +202,7 @@ public class BluetoothLE {
             } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
                 closeBluetoothGatt();
 
-                //ManageBluetoothLE.getInstance().getMultipleBluetoothController().removeBleBluetooth(BluetoothLE.this);
+                ManageBluetoothLE.getInstance().removeBleutoothLE(BluetoothLE.this);
 
                 if (mBluetoothLEConnectState == BluetoothLEConnectState.CONNECT_CONNECTING) {
                     mBluetoothLEConnectState = BluetoothLEConnectState.CONNECT_FAILURE;
@@ -229,7 +247,8 @@ public class BluetoothLE {
                 mBluetoothGatt = gatt;
                 mBluetoothLEConnectState = BluetoothLEConnectState.CONNECT_CONNECTED;
                 isActiveDisconnect = false;
-                //ManageBluetoothLE.getInstance().getMultipleBluetoothController().addBleBluetooth(BluetoothLE.this);
+
+                ManageBluetoothLE.getInstance().addBluetoothLE(BluetoothLE.this);
 
                 if (isMainThread) {
                     Message message = handler.obtainMessage();
@@ -286,6 +305,9 @@ public class BluetoothLE {
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             super.onCharacteristicWrite(gatt, characteristic, status);
+            Log.i(TAG, "BluetoothGattCallback：onCharacteristicWrite "
+                    + '\n' + "status: " + status
+                    + '\n' + "currentThread: " + Thread.currentThread().getId());
 
             characteristic.getUuid().toString();
 

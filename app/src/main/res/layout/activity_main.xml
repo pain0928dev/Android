@@ -16,7 +16,6 @@
         android:layout_height="wrap_content"
         android:text="Hello World!" />
 
-
     <Button
         android:id="@+id/bt_scan"
         android:layout_width="match_parent"
@@ -37,5 +36,24 @@
         android:layout_height="wrap_content"
         android:onClick="onClickDisconnect"
         android:text="disconnect"/>
+    <Button
+        android:id="@+id/bt_read"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="onClickRead"
+        android:text="Read"/>
+    <Button
+        android:id="@+id/bt_write"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="onClickWrite"
+        android:text="Write"/>
+
+    <Button
+        android:id="@+id/bt_mv_second_act"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="onMove"
+        android:text="go second activity"/>
 
 </LinearLayout>

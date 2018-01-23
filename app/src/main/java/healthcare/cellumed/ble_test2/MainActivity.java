@@ -20,6 +20,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import healthcare.cellumed.ble_test2.BluetoothLE.BleConnectCallback;
+import healthcare.cellumed.ble_test2.BluetoothLE.BleScanCallback;
+import healthcare.cellumed.ble_test2.BluetoothLE.BluetoothLE;
+import healthcare.cellumed.ble_test2.BluetoothLE.BluetoothLEConnectState;
+import healthcare.cellumed.ble_test2.BluetoothLE.DeviceBluetoothLE;
+import healthcare.cellumed.ble_test2.BluetoothLE.ManageBluetoothLE;
+
 
 public class MainActivity extends AppCompatActivity {
 
@@ -178,5 +185,24 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onClickDisconnect(View v){
+        Log.e(TAG, "onClickDisconnect");
+    }
+
+    public void onClickRead(View v){
+        Log.e(TAG, "onClickRead");
+        ManageBluetoothLE.getInstance().read();
+
+    }
+
+    public void onClickWrite(View v){
+        Log.e(TAG, "onClickWrite");
+        ManageBluetoothLE.getInstance().write();
+
+    }
+
+    public void onMove(View v){
+
+        Intent i = new Intent(this, SecondActivity.class);
+        startActivity(i);
     }
 }

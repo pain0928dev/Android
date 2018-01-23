@@ -36,7 +36,9 @@
         <service
             android:name=".BLeService"
             android:enabled="true"
-            android:exported="true"></service>
+            android:exported="true" />
+
+        <activity android:name=".SecondActivity"></activity>
     </application>
 
 </manifest>
