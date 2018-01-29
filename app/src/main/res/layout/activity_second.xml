@@ -20,9 +20,14 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:onClick="onClickWrite"
+        android:text="write"/>
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:onClick="onOK"
-        android:text="OK"
-        />
+        android:text="OK"/>
 
     <Button
         android:layout_width="wrap_content"

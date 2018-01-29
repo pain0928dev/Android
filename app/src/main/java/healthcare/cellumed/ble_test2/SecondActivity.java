@@ -1,16 +1,26 @@
 package healthcare.cellumed.ble_test2;
 
+import android.bluetooth.BluetoothDevice;
+import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
+import healthcare.cellumed.ble_test2.BluetoothLE.BLEDevice;
+import healthcare.cellumed.ble_test2.BluetoothLE.ManageBluetoothLE;
+
 public class SecondActivity extends AppCompatActivity {
 
     final String TAG = "SecondActivity";
 
     TextView tvDisp;
+
+    BLEDevice mBLEDevice;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,6 +37,11 @@ public class SecondActivity extends AppCompatActivity {
         finish();
     }
 
+    public void onClickWrite(View v){
+        Log.d(TAG, "onClickWrite");
+        ManageBluetoothLE.getInstance().write(mBLEDevice);
+    }
+
     public void onOK(View v){
         Log.d(TAG, "onOK");
 
@@ -36,5 +51,22 @@ public class SecondActivity extends AppCompatActivity {
         Log.d(TAG, "onBack");
         finish();
     }
+
+
+    Handler mainHandle = new Handler(Looper.getMainLooper()) {
+
+        @Override
+        public void handleMessage(Message msg) {
+            Log.d(TAG, "Second Handle: " + msg. what);
+            Log.d(TAG, "data: " + (String)msg.obj);
+
+            switch (msg.what) {
+                case 1:
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
 
 }

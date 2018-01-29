@@ -25,17 +25,15 @@ public class BleScanner {
 
     private static final String TAG = BleScanner.class.getSimpleName();
 
-    private BluetoothManager mBluetoothManager;
-    private BluetoothAdapter mBluetoothAdapter;
-    private BluetoothLeScanner mBleScanner;
+    private BluetoothLeScanner bluetoothLeScanner;
     private ScanSettings scanSettings;
-    private List<ScanFilter> filters;
-
-    private WeakReference<Context> mContextWeakReference;
+    private List<ScanFilter> filterList;
+    private WeakReference<Context> contextWeakReference;
     private static BleScanner instance;
+    BleScanCallback bleScanCallback;
 
     BleScanner(Context context){
-        mContextWeakReference = new WeakReference<Context>(context);
+        contextWeakReference = new WeakReference<Context>(context);
     }
 
     public static BleScanner getInstance(Context context) {
@@ -44,77 +42,77 @@ public class BleScanner {
         if (instance == null) {
             instance = new BleScanner(context);
         } else {
-            instance.mContextWeakReference = new WeakReference<Context>(context);
+            instance.contextWeakReference = new WeakReference<Context>(context);
         }
         return instance;
     }
 
     public void setFilters(String name, String address, String uuid){
-        filters = new ArrayList<ScanFilter>();
+        filterList = new ArrayList<ScanFilter>();
 
         ScanFilter sf;
         ParcelUuid pu = new ParcelUuid(UUID.fromString(uuid));
         sf = new ScanFilter.Builder().setServiceUuid(pu).setDeviceName(name).setDeviceAddress(address).build();
 
-        filters.add(sf);
+        filterList.add(sf);
         scanSettings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
         //scanSettings = new ScanSettings.Builder().build();
     }
 
-    BleScanCallback mCallBack;
     public void startScan(BleScanCallback callback){
 
-        Context context = mContextWeakReference.get();
+        BluetoothManager bluetoothManager;
+        BluetoothAdapter bluetoothAdapter;
+
+        Context context = contextWeakReference.get();
+
         if(context == null) return;
 
         // For API level 18 and above, get a reference to BluetoothAdapter through
         // BluetoothManager.
-        Log.d("BluetoothLeService",  "initialize is " + mBluetoothManager);
-        if (mBluetoothManager == null) {
-            mBluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
-            if (mBluetoothManager == null) {
-                Log.e(TAG, "Unable to initialize BluetoothManager.");
-                return;
-            }
+        bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
+        if (bluetoothManager == null) {
+            Log.e(TAG, "Unable to initialize BluetoothManager.");
+            return;
         }
 
-        mBluetoothAdapter = mBluetoothManager.getAdapter();
-        if (mBluetoothAdapter == null) {
+        bluetoothAdapter = bluetoothManager.getAdapter();
+        if (bluetoothAdapter == null) {
             Log.e(TAG, "Unable to obtain a BluetoothAdapter.");
             return;
         }
 
-        if (!mBluetoothAdapter.isEnabled()) mBluetoothAdapter.enable();
+        if (!bluetoothAdapter.isEnabled()) bluetoothAdapter.enable();
 
-        mBleScanner = mBluetoothAdapter.getBluetoothLeScanner();
+        bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
         // Checks if Bluetooth LE Scanner is available.
-        if (mBleScanner == null) {
+        if (bluetoothLeScanner == null) {
             Log.d(TAG, "Can not find BLE Scanner");
             return;
         }
 
-        mCallBack = callback;
-
-        Log.d(TAG, "start scan");
+        bleScanCallback = callback;
         //mBleScanner.startScan(filters, scanSettings, mScanCallback);
-        mBleScanner.startScan(mScanCallback);
-        mCallBack.onStartScan();
+        bluetoothLeScanner.startScan(scanCallback);
+        bleScanCallback.onStartScan();
+        Log.d(TAG, "start scan");
+
     }
 
     public void stopScan() {
-        if (mBleScanner == null || mScanCallback == null) {
+        if (bluetoothLeScanner == null || scanCallback == null) {
             return;
         }
-        mBleScanner.stopScan(mScanCallback);
+        bluetoothLeScanner.stopScan(scanCallback);
     }
 
 
-    private ScanCallback mScanCallback = new ScanCallback() {
+    private ScanCallback scanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
             super.onScanResult(callbackType, result);
             //processResult(result);
-            mCallBack.onProcessResult(result.getDevice());
+            bleScanCallback.onProcessResult(new BLEDevice(result.getDevice().getName(), result.getDevice().getAddress()));
         }
 
         @Override
@@ -122,7 +120,7 @@ public class BleScanner {
             super.onBatchScanResults(results);
             for (ScanResult result : results) {
                 //processResult(result);
-                mCallBack.onProcessResult(result.getDevice());
+                bleScanCallback.onProcessResult(new BLEDevice(result.getDevice().getName(), result.getDevice().getAddress()));
             }
         }
 

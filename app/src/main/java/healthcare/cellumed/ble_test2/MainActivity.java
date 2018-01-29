@@ -7,6 +7,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -16,13 +19,15 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
+import healthcare.cellumed.ble_test2.BluetoothLE.BLEDevice;
 import healthcare.cellumed.ble_test2.BluetoothLE.BleConnectCallback;
 import healthcare.cellumed.ble_test2.BluetoothLE.BleScanCallback;
-import healthcare.cellumed.ble_test2.BluetoothLE.BluetoothLE;
 import healthcare.cellumed.ble_test2.BluetoothLE.BluetoothLEConnectState;
 import healthcare.cellumed.ble_test2.BluetoothLE.DeviceBluetoothLE;
 import healthcare.cellumed.ble_test2.BluetoothLE.ManageBluetoothLE;
@@ -30,20 +35,22 @@ import healthcare.cellumed.ble_test2.BluetoothLE.ManageBluetoothLE;
 
 public class MainActivity extends AppCompatActivity {
 
-    Button btn_connect;
+    Button btnScan;
+    Button btnConnect;
 
-    final static String TAG = "MainActivity";
+    private final static String TAG = "MainActivity";
 
-    HashMap<String, DeviceBluetoothLE>  scan_dev;
+    ArrayList<BLEDevice> scanBLEDeviceList;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        btn_connect = (Button)findViewById(R.id.bt_connect);
+        btnScan = (Button)findViewById(R.id.bt_scan);
+        btnConnect = (Button)findViewById(R.id.bt_connect);
 
-        scan_dev = new HashMap<String, DeviceBluetoothLE>();
+        scanBLEDeviceList = new ArrayList<BLEDevice>();
 
         checkPermission();
 
@@ -94,8 +101,7 @@ public class MainActivity extends AppCompatActivity {
                     super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
                     //mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-                }
-                else{
+                } else {
                     //finish();
                 }
             }
@@ -110,25 +116,52 @@ public class MainActivity extends AppCompatActivity {
     }
     // --------------------------------------------------------------------
 
+    public boolean checkEqualObject(BLEDevice dev){
+        for(int i=0; i< scanBLEDeviceList.size(); i++){
+            if(scanBLEDeviceList.get(i).getName().equals(dev.getName())){
+                Log.d(TAG, "same name.....");
+                return true;
+            }
+        }
+        return false;
+    }
+
     final static int MAX_BLE_DEVICE_COUNT = 1;
-    public void AddDevice(String name, DeviceBluetoothLE ble_dev){
-        if(!scan_dev.containsKey(name)){
-            scan_dev.put(name, ble_dev);
-            Log.e(TAG, "Add Device : " + name);
+    public void AddDevice(BLEDevice dev){
+
+        if(checkEqualObject(dev)){
+            ManageBluetoothLE.getInstance().stopScan();
+            return;
+        } else {
+            Log.i(TAG, "Add BLE Device...");
+            scanBLEDeviceList.add(dev);
         }
 
-        if(scan_dev.size() == MAX_BLE_DEVICE_COUNT){
-            ManageBluetoothLE.getInstance().stopScan();
+        if(scanBLEDeviceList.size() == MAX_BLE_DEVICE_COUNT){
+            if(btnScan.getText().equals("stop")){
+                btnScan.setText("scan");
+                ManageBluetoothLE.getInstance().stopScan();
+            }
         }
     }
 
-    DeviceBluetoothLE mDeviceBluetoothLE;
+    BluetoothDevice mBluetoothDevice;
     public void onClickScan(View v){
         Log.d(TAG, "onClickScan");
+
+        if(btnScan.getText().equals("scan")){
+            btnScan.setText("stop");
+        } else if (btnScan.getText().equals("stop")){
+            btnScan.setText("scan");
+            ManageBluetoothLE.getInstance().stopScan();
+            return;
+        }
+
         ManageBluetoothLE.getInstance().startScan(new BleScanCallback() {
             @Override
             public void onStartScan() {
                 Toast.makeText(getApplicationContext(),"onStartScan",Toast.LENGTH_SHORT).show();
+
             }
 
             @Override
@@ -137,13 +170,12 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onProcessResult(BluetoothDevice scanResult) {
-                if(scanResult.getName() == null) return;
-                if(scanResult.getName().contains("CRD-K100")) {
-                    Log.e(TAG, "Scan Device : " + scanResult.getName());
-                    mDeviceBluetoothLE = new DeviceBluetoothLE(scanResult);
-                    AddDevice(scanResult.getName(), new DeviceBluetoothLE(scanResult));
-                    //ManageBluetoothLE.getInstance().stopScan();
+            public void onProcessResult(BLEDevice dev) {
+                if(dev.getName() == null) return;
+                //if(scanResult.getName().contains("CRD-K100")) {
+                if(dev.getName().contains("CRD-K100(E2C2)")) {
+                    Log.i(TAG, "Scan Device : " + dev.getName() + ", " + dev.getAddress());
+                    AddDevice(dev);
                 }
             }
         });
@@ -151,16 +183,12 @@ public class MainActivity extends AppCompatActivity {
 
     public void onClickConnect(View v){
 
-        Iterator iterator = scan_dev.entrySet().iterator();
-        DeviceBluetoothLE devBle = null;
-        while (iterator.hasNext()) {
-            Map.Entry entry = (Map.Entry) iterator.next();
-            Object obj = entry.getValue();
-            devBle = (DeviceBluetoothLE)obj;
-            Log.d(TAG, "Get.............................");
+        BLEDevice bleDev = null;
+        for(int i=0; i < scanBLEDeviceList.size(); i++){
+            bleDev = scanBLEDeviceList.get(i);
         }
 
-        ManageBluetoothLE.getInstance().connect(devBle, new BleConnectCallback() {
+        ManageBluetoothLE.getInstance().connect(bleDev, new BleConnectCallback() {
 
             @Override
             public void onStartConnect(BluetoothLEConnectState status) {
@@ -186,18 +214,47 @@ public class MainActivity extends AppCompatActivity {
 
     public void onClickDisconnect(View v){
         Log.e(TAG, "onClickDisconnect");
+
+        Iterator iterator = scanBLEDeviceList.iterator();
+        BLEDevice devBle = null;
+        while (iterator.hasNext()) {
+            Map.Entry entry = (Map.Entry) iterator.next();
+            Object obj = entry.getValue();
+            devBle = (BLEDevice) obj;
+            Log.d(TAG, "Get.............................");
+        }
+        ManageBluetoothLE.getInstance().disconnect(devBle);
     }
 
     public void onClickRead(View v){
         Log.e(TAG, "onClickRead");
-        ManageBluetoothLE.getInstance().read();
+
+        Iterator iterator = scanBLEDeviceList.iterator();
+        BLEDevice devBle = null;
+        while (iterator.hasNext()) {
+            Map.Entry entry = (Map.Entry) iterator.next();
+            Object obj = entry.getValue();
+            devBle = (BLEDevice) obj;
+            Log.d(TAG, "Get.............................");
+        }
+
+        ManageBluetoothLE.getInstance().read(devBle);
 
     }
 
     public void onClickWrite(View v){
         Log.e(TAG, "onClickWrite");
-        ManageBluetoothLE.getInstance().write();
 
+        Iterator iterator = scanBLEDeviceList.iterator();
+        BLEDevice devBle = null;
+        while (iterator.hasNext()) {
+            Map.Entry entry = (Map.Entry) iterator.next();
+            Object obj = entry.getValue();
+            devBle = (BLEDevice) obj;
+            Log.d(TAG, "Get.............................");
+        }
+
+        ManageBluetoothLE.getInstance().write(devBle);
     }
 
     public void onMove(View v){
@@ -205,4 +262,21 @@ public class MainActivity extends AppCompatActivity {
         Intent i = new Intent(this, SecondActivity.class);
         startActivity(i);
     }
+
+    Handler mainHandle = new Handler(Looper.getMainLooper()) {
+
+        @Override
+        public void handleMessage(Message msg) {
+            Log.d(TAG, "Main Handle: " + msg. what);
+            Log.d(TAG, "data: " + (String)msg.obj);
+
+            switch (msg.what) {
+                case 1:
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
+
 }

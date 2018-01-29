@@ -2,10 +2,14 @@ package healthcare.cellumed.ble_test2.BluetoothLE;
 
 import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
 
 import java.util.HashMap;
@@ -13,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.BlockingDeque;
 
 import healthcare.cellumed.ble_test2.BleProfile;
+import healthcare.cellumed.ble_test2.Util.RingBuffer;
 
 /**
  * Created by ljh0928 on 2018. 1. 4..
@@ -20,82 +25,74 @@ import healthcare.cellumed.ble_test2.BleProfile;
 
 public class ManageBluetoothLE {
 
-    final static String TAG = "ManageBluetoothLE";
+    final String TAG = "ManageBluetoothLE";
 
-    private Application mContext;
-    private BluetoothManager mBluetoothManager;
-    private BluetoothAdapter mBluetoothAdapter;
-    private BleScanner mBleScanner;
-    private HashMap<String, BluetoothLE> mBle_map = null;
-
-    String mDeviceName;
-    String mAddress;
-    String mServiceUUID;
-    String mWriteUUID;
-    String mNotifyUUID;
+    private Application application;
+    private BleScanner bleScanner;
+    private HashMap<String, BluetoothLE> bluetoothLEHashMap = null;
+    private RingBuffer<Send2Gatt> sendBuffer = new RingBuffer<Send2Gatt>(16);
 
     public static ManageBluetoothLE getInstance() {
-        return ManagerBleHolder.sManagerBLE;
+        return ManagerBleHolder.manageBluetoothLE;
     }
 
     private static class ManagerBleHolder {
-        private static final ManageBluetoothLE sManagerBLE = new ManageBluetoothLE();
+        private static final ManageBluetoothLE manageBluetoothLE = new ManageBluetoothLE();
     }
 
     public void init(Application app) {
-        if (mContext == null && app != null) {
-            mContext = app;
-            mBle_map = new HashMap<String, BluetoothLE>();
+        if (application == null && app != null) {
+            application = app;
+            bluetoothLEHashMap = new HashMap<String, BluetoothLE>();
 
-            BluetoothManager bluetoothManager = (BluetoothManager) mContext
-                    .getSystemService(Context.BLUETOOTH_SERVICE);
-            if (bluetoothManager != null)
-                mBluetoothAdapter = bluetoothManager.getAdapter();
-            //bleExceptionHandler = new DefaultBleExceptionHandler();
-            //multipleBluetoothController = new MultipleBluetoothController();
+            eableBluetooth();
             //bleScanRuleConfig = new BleScanRuleConfig();
-            mBleScanner = BleScanner.getInstance(mContext);
+            bleScanner = BleScanner.getInstance(application.getApplicationContext());
         }
 
-        mDeviceName = "";
-        mAddress = "";
-        mServiceUUID = "";
-        mWriteUUID = "";
-        mNotifyUUID = "";
+        new Thread() {
+
+            private final String TAG = "ManageBluetoothLEThread";
+
+            // Todo: if There is data in buffer
+
+            public void run(){
+
+                while(true){
+                    synchronized (this) {
+                        if (sendBuffer.size() > 0) {
+                            Send2Gatt s2g = sendBuffer.pop();
+                            s2g.gatt.writeCharacteristic(s2g.characteristic);
+                            Log.d(TAG, "Write Gatt: " + s2g.gatt.getDevice());
+                        }
+                        try {
+                            Thread.sleep(1);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+
+        }.start();
+    }
+
+    public Context getContext(){
+        return application.getApplicationContext();
     }
 
     public void addBluetoothLE(BluetoothLE ble){
-        if(mBle_map != null && !mBle_map.containsKey(ble.getDeviceKey())){
-            Log.d(TAG, "AddbluetoothLE" + ble.getDevice() + ":" + ble.getDeviceKey());
-            mBle_map.put(ble.getDeviceKey(), ble);
+        if(bluetoothLEHashMap != null && !bluetoothLEHashMap.containsKey(ble.getBluetoothDeviceKey())){
+            Log.d(TAG, "AddbluetoothLE" + ble.getBluetoothDevice() + ":" + ble.getBluetoothDeviceKey());
+            bluetoothLEHashMap.put(ble.getBluetoothDeviceKey(), ble);
         }
     }
 
     public void removeBleutoothLE(BluetoothLE ble){
-        if(mBle_map != null && mBle_map.containsKey(ble.getDeviceKey())){
-            Log.d(TAG, "removeBluetoothLE" + ble.getDevice() + ":" + ble.getDeviceKey());
-            mBle_map.remove(ble.getDeviceKey());
+        if(bluetoothLEHashMap != null && bluetoothLEHashMap.containsKey(ble.getBluetoothDeviceKey())){
+            Log.d(TAG, "removeBluetoothLE" + ble.getBluetoothDevice() + ":" + ble.getBluetoothDeviceKey());
+            bluetoothLEHashMap.remove(ble.getBluetoothDeviceKey());
         }
-    }
-
-    public static final String SERVICE_UUID = "49535343-fe7d-4ae5-8fa9-9fafd205e455";
-
-    public void setmDeviceName(String devName){
-        mDeviceName = devName;
-    }
-
-    public void setAddress(String address){
-        mAddress = address;
-    }
-
-    public void setUUID(String service, String write, String notify){
-        mServiceUUID = service;
-        mWriteUUID = write;
-        mNotifyUUID = notify;
-    }
-
-    public Context getContext(){
-        return mContext;
     }
 
     public void startScan(BleScanCallback callback){
@@ -103,20 +100,27 @@ public class ManageBluetoothLE {
             return;
         }
 
-        // scan해서 나오는 리스트를
         //mBleScanner.setFilters(mDeviceName, mAddress, SERVICE_UUID);
-        mBleScanner.startScan(callback);
+        bleScanner.startScan(callback);
     }
 
     public void stopScan(){
-        mBleScanner.stopScan();
+        bleScanner.stopScan();
     }
 
-    public boolean isBlueEnable() {
-        return mBluetoothAdapter != null && mBluetoothAdapter.isEnabled();
+    public void eableBluetooth() {
+        BluetoothManager bluetoothManager =
+                (BluetoothManager) application.getApplicationContext()
+                .getSystemService(Context.BLUETOOTH_SERVICE);
+        if (bluetoothManager != null) {
+            BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
+            if(bluetoothAdapter != null && bluetoothAdapter.isEnabled()){
+                bluetoothAdapter.enable();
+            }
+        }
     }
 
-    public BluetoothGatt connect(DeviceBluetoothLE dev, BleConnectCallback callback){
+    public BluetoothGatt connect(BLEDevice ble_dev, BleConnectCallback callback){
 
         // TODO: 2018. 1. 23.
         // 연결 시도후 정상적으로 장치가 연결 되었음을 알려 줘야한다
@@ -125,55 +129,150 @@ public class ManageBluetoothLE {
             throw new IllegalArgumentException("BleConnectCallback is null");
         }
 
-        if (dev == null || dev.getDevice() == null) {
+        if (ble_dev == null) {
             callback.onConnectFail(BluetoothLEConnectState.CONNECT_FAILURE);
         } else {
-            BluetoothLE bleBluetooth = new BluetoothLE(dev);
+            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+            final BluetoothDevice device = bluetoothAdapter.getRemoteDevice(ble_dev.getAddress());
+            BluetoothLE bleBluetooth = new BluetoothLE(device);
             //boolean autoConnect = bleScanRuleConfig.isAutoConnect();
-            return bleBluetooth.connect(dev, false, callback);
+            callback.onStartConnect(BluetoothLEConnectState.CONNECT_CONNECTING);
+            return bleBluetooth.connect(device, false);
         }
         return null;
     }
 
-    public void disconnect(){
+    public void disconnect(BLEDevice dev){
 
+        // 연결된 리스트중에 전달받은 인자와 같은걸 disconnect 시킨다
+        String key = makeKey(dev);
+        if(bluetoothLEHashMap.containsKey(key)){
+            BluetoothLE ble = bluetoothLEHashMap.get(key);
+            ble.disconnect();
+        }
     }
 
-    public void read(){
+    public void read(BLEDevice dev){
 
-        if(mBle_map.containsKey("CRD-K100(E2C2)D8:80:39:F5:E2:C2")){
+        // 연결된 리스트중에 전달받은 인자와 같은걸 disconnect 시킨다
+        String key = makeKey(dev);
+        if(bluetoothLEHashMap.containsKey(key)){
             Log.e(TAG, "read");
-            BluetoothLE ble = mBle_map.get("CRD-K100(E2C2)D8:80:39:F5:E2:C2");
-            BluetoothGatt gatt = ble.getmBluetoothGatt();
+            BluetoothLE ble = bluetoothLEHashMap.get(key);
+            BluetoothGatt gatt = ble.getBluetoothGatt();
 
             BluetoothGattCharacteristic characteristic =
                     gatt.getService(UUID.fromString(BleProfile.SERVICE_UUID))
                     .getCharacteristic(UUID.fromString(BleProfile.NOTIFY_UUID));
 
             gatt.readCharacteristic(characteristic);
-
-
         }
-
     }
 
-    public void write(){
-        if(mBle_map.containsKey("CRD-K100(E2C2)D8:80:39:F5:E2:C2")){
+    public void write(BLEDevice dev){
+
+        String key = makeKey(dev);
+        if(bluetoothLEHashMap.containsKey(key)){
             Log.e(TAG, "write");
-            BluetoothLE ble = mBle_map.get("CRD-K100(E2C2)D8:80:39:F5:E2:C2");
-            BluetoothGatt gatt = ble.getmBluetoothGatt();
+            BluetoothLE ble = bluetoothLEHashMap.get(key);
+            BluetoothGatt gatt = ble.getBluetoothGatt();
 
             BluetoothGattCharacteristic characteristic =
                     gatt.getService(UUID.fromString(BleProfile.SERVICE_UUID))
                     .getCharacteristic(UUID.fromString(BleProfile.NOTIFY_UUID));
 
-            byte[] data = { 0x31, 0x32, 0x33, 0x34, 0x35};
+            if (characteristic == null) {
+                Log.e(TAG, "characteristic is null");
+                return;
+            }
 
+            String s = makeData("01", "");
+            byte data[] = hexStringToByteArray(s);
             characteristic.setValue(data);
-
-            gatt.writeCharacteristic(characteristic);
-
+            sendBuffer.push(new Send2Gatt(gatt, characteristic));
+            /*
+            boolean status = gatt.writeCharacteristic(characteristic);
+            Log.e(TAG, "status:" + status);
+            */
         }
     }
+
+    public String makeKey(BLEDevice dev){
+        return (dev.getName() + dev.getAddress());
+    }
+    private class Send2Gatt{
+        BluetoothGatt gatt;
+        BluetoothGattCharacteristic characteristic;
+
+        public Send2Gatt(BluetoothGatt _gatt, BluetoothGattCharacteristic _characteristic){
+            gatt = _gatt;
+            characteristic = _characteristic;
+        }
+    }
+
+    // util
+    public byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len - 1; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+                    + Character.digit(s.charAt(i + 1), 16));
+        }
+        return data;
+    }
+
+    private String makeData(String cmd, String data) {
+        String header = "21";
+        String footer = "75";
+
+        int length = 20;    // length is always 20
+        int checkSum = 0;
+
+        String outdata="C100"+cmd + data + "0000000000000000000000000000".substring(0,28-data.length());
+        for (int i = 0; i < outdata.length() ; i += 2) {
+            //tmp = Integer.parseInt(data.substring(i, i + 2), 16);
+            checkSum += Integer.parseInt(outdata.substring(i, i + 2), 16);
+
+        }
+
+        if (checkSum > 255)
+            checkSum = checkSum & 0x00ff;
+        return header + outdata + String.format("%02X", checkSum) + footer;
+    }
+
+
+
+
+    //private RingBuffer<byte> recvByteBuffer = new RingBuffer<byte>(8192);
+
+    /*
+    private class ManageThread extends Thread {
+
+        private final String TAG = "ManageThread";
+
+        // Todo: if There is data in buffer
+
+        public ManageThread(){
+
+        }
+
+        public void run(){
+
+            while(true){
+                if(sendBuffer.size() > 0){
+                    Send2Gatt s2g = sendBuffer.pop();
+                    s2g.gatt.writeCharacteristic(s2g.characteristic);
+                    Log.d(TAG, "Write Gatt: " + s2g.gatt.getDevice());
+                }
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+    }
+    */
 
 }

@@ -10,35 +10,35 @@ import android.os.Parcelable;
 
 public class DeviceBluetoothLE implements Parcelable {
 
-    private BluetoothDevice mDevice;
-    private byte[] mScanRecord;
-    private int mRssi;
-    private long mTimestampNanos;
+    private BluetoothDevice bluetoothDevice;
+    private byte[] scanRecord;
+    private int rssi;
+    private long timestampNanos;
 
     public DeviceBluetoothLE(BluetoothDevice device) {
-        mDevice = device;
+        bluetoothDevice = device;
     }
 
     public DeviceBluetoothLE(BluetoothDevice device, int rssi, byte[] scanRecord, long timestampNanos) {
-        mDevice = device;
-        mScanRecord = scanRecord;
-        mRssi = rssi;
-        mTimestampNanos = timestampNanos;
+        this.bluetoothDevice = device;
+        this.scanRecord = scanRecord;
+        this.rssi = rssi;
+        timestampNanos = timestampNanos;
     }
 
     protected DeviceBluetoothLE(Parcel in) {
-        mDevice = in.readParcelable(BluetoothDevice.class.getClassLoader());
-        mScanRecord = in.createByteArray();
-        mRssi = in.readInt();
-        mTimestampNanos = in.readLong();
+        bluetoothDevice = in.readParcelable(BluetoothDevice.class.getClassLoader());
+        scanRecord = in.createByteArray();
+        rssi = in.readInt();
+        timestampNanos = in.readLong();
     }
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-        dest.writeParcelable(mDevice, flags);
-        dest.writeByteArray(mScanRecord);
-        dest.writeInt(mRssi);
-        dest.writeLong(mTimestampNanos);
+        dest.writeParcelable(bluetoothDevice, flags);
+        dest.writeByteArray(scanRecord);
+        dest.writeInt(rssi);
+        dest.writeLong(timestampNanos);
     }
 
     @Override
@@ -59,52 +59,52 @@ public class DeviceBluetoothLE implements Parcelable {
     };
 
     public String getName() {
-        if (mDevice != null)
-            return mDevice.getName();
+        if (bluetoothDevice != null)
+            return bluetoothDevice.getName();
         return null;
     }
 
     public String getMac() {
-        if (mDevice != null)
-            return mDevice.getAddress();
+        if (bluetoothDevice != null)
+            return bluetoothDevice.getAddress();
         return null;
     }
 
     public String getKey() {
-        if (mDevice != null)
-            return mDevice.getName() + mDevice.getAddress();
+        if (bluetoothDevice != null)
+            return bluetoothDevice.getName() + bluetoothDevice.getAddress();
         return "";
     }
 
     public BluetoothDevice getDevice() {
-        return mDevice;
+        return bluetoothDevice;
     }
 
     public void setDevice(BluetoothDevice device) {
-        this.mDevice = device;
+        this.bluetoothDevice = device;
     }
 
     public byte[] getScanRecord() {
-        return mScanRecord;
+        return scanRecord;
     }
 
     public void setScanRecord(byte[] scanRecord) {
-        this.mScanRecord = scanRecord;
+        this.scanRecord = scanRecord;
     }
 
     public int getRssi() {
-        return mRssi;
+        return rssi;
     }
 
     public void setRssi(int rssi) {
-        this.mRssi = rssi;
+        this.rssi = rssi;
     }
 
     public long getTimestampNanos() {
-        return mTimestampNanos;
+        return timestampNanos;
     }
 
     public void setTimestampNanos(long timestampNanos) {
-        this.mTimestampNanos = timestampNanos;
+        this.timestampNanos = timestampNanos;
     }
 }

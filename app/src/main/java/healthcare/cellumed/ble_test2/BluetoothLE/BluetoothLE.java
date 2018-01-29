@@ -1,5 +1,6 @@
 package healthcare.cellumed.ble_test2.BluetoothLE;
 
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -8,9 +9,15 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.text.TextUtils;
 import android.util.Log;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Objects;
+import java.util.UUID;
+
+import healthcare.cellumed.ble_test2.BleProfile;
 
 import static android.bluetooth.BluetoothDevice.TRANSPORT_LE;
 
@@ -20,74 +27,74 @@ import static android.bluetooth.BluetoothDevice.TRANSPORT_LE;
 
 public class BluetoothLE {
 
-    final String TAG = "BluetoothLE";
+    private static final String TAG = "BluetoothLE";
 
-    private BluetoothLEConnectState mBluetoothLEConnectState = BluetoothLEConnectState.CONNECT_IDLE;
+    private BluetoothLEConnectState bluetoothLEConnectState = BluetoothLEConnectState.CONNECT_IDLE;
+    private BluetoothDevice bluetoothDevice;
+    private BluetoothGatt bluetoothGatt;
     private boolean isActiveDisconnect = false;
-    private DeviceBluetoothLE mDeviceBluetoothLE;
-    private BluetoothGatt mBluetoothGatt;
-    private BleConnectCallback mBleConnectCallback;
     private boolean isMainThread = false;
-    private MainHandler handler = new MainHandler();
 
-    BluetoothLE(DeviceBluetoothLE dev){
-        mDeviceBluetoothLE = dev;
+
+    private Handler handler = null;
+    private Objects callBack = null;
+
+    BluetoothLE(BluetoothDevice dev){
+        bluetoothDevice = dev;
     }
 
-    public synchronized BluetoothGatt connect(DeviceBluetoothLE devBle,
-                                              boolean autoConnect,
-                                              BleConnectCallback callback) {
-        Log.i(TAG, "connect device: " + devBle.getName()
-                + "\nmac: " + devBle.getMac()
+    BluetoothLE(BluetoothDevice device, Handler handle){
+        this.bluetoothDevice = device;
+        this.handler = handle;
+    }
+
+    BluetoothLE(BluetoothDevice device, Objects callback){
+        this.bluetoothDevice = device;
+        this.callBack = callback;
+    }
+
+    public BluetoothDevice getBluetoothDevice(){
+        return this.bluetoothDevice;
+    }
+    public String getBluetoothDeviceName() { return this.bluetoothDevice.getName(); }
+    public String getBluetoothDeviceAddress() { return this.bluetoothDevice.getAddress(); }
+    public String getBluetoothDeviceKey() { return (getBluetoothDeviceName() + getBluetoothDeviceAddress()); }
+
+    public BluetoothGatt getBluetoothGatt(){
+        return this.bluetoothGatt;
+    }
+
+    public BluetoothLEConnectState getConnectState() { return this.bluetoothLEConnectState; }
+
+    public synchronized BluetoothGatt connect(BluetoothDevice device, boolean autoConnect) {
+        Log.i(TAG, "connect Name: " + device.getName()
+                + "\nAddress: " + device.getAddress()
                 + "\nautoConnect: " + autoConnect
                 + "\ncurrentThread: " + Thread.currentThread().getId());
 
-
-        isMainThread = Looper.myLooper() != null && Looper.myLooper() == Looper.getMainLooper();
-
-        BluetoothGatt gatt;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            gatt = devBle.getDevice().connectGatt(ManageBluetoothLE.getInstance().getContext(),
+            this.bluetoothGatt = device.connectGatt(ManageBluetoothLE.getInstance().getContext(),
                     autoConnect, coreGattCallback, TRANSPORT_LE);
         } else {
-            gatt = devBle.getDevice().connectGatt(ManageBluetoothLE.getInstance().getContext(),
+            this.bluetoothGatt = device.connectGatt(ManageBluetoothLE.getInstance().getContext(),
                     autoConnect, coreGattCallback);
         }
-        if (gatt != null) {
-            mBleConnectCallback = callback;
-            if (callback != null)
-                callback.onStartConnect(BluetoothLEConnectState.CONNECT_CONNECTING);
 
-            mBluetoothLEConnectState = BluetoothLEConnectState.CONNECT_CONNECTING;
+        this.bluetoothLEConnectState = BluetoothLEConnectState.CONNECT_CONNECTING;
+        return this.bluetoothGatt;
+    }
+
+    public synchronized void disconnect() {
+        if (this.bluetoothGatt != null) {
+            this.isActiveDisconnect = true;
+            this.bluetoothGatt.disconnect();
         }
-        return gatt;
     }
 
-    private BluetoothGatt getBluetoothGatt(){
-        return mBluetoothGatt;
-    }
-    private DeviceBluetoothLE getDeviceBluetoothLE(){
-        return mDeviceBluetoothLE;
-    }
-
-    public String getDeviceKey() {
-        return mDeviceBluetoothLE.getKey();
-    }
-
-    public String getDeviceName() {
-        return mDeviceBluetoothLE.getName();
-    }
-
-    public BluetoothLEConnectState getConnectState() {
-        return mBluetoothLEConnectState;
-    }
-
-    public DeviceBluetoothLE getDevice() {
-        return mDeviceBluetoothLE;
-    }
-
-    public BluetoothGatt getmBluetoothGatt(){
-        return mBluetoothGatt;
+    private synchronized void closeBluetoothGatt() {
+        if (this.bluetoothGatt != null) {
+            this.bluetoothGatt.close();
+        }
     }
 
     private synchronized boolean refreshDeviceCache() {
@@ -105,87 +112,15 @@ public class BluetoothLE {
         return false;
     }
 
-    public synchronized void disconnect() {
-        if (mBluetoothGatt != null) {
-            isActiveDisconnect = true;
-            mBluetoothGatt.disconnect();
-        }
-    }
-
-    private synchronized void closeBluetoothGatt() {
-        if (mBluetoothGatt != null) {
-            mBluetoothGatt.close();
-        }
-    }
-
     public void destroy() {
-        mBluetoothLEConnectState = BluetoothLEConnectState.CONNECT_IDLE;
-        if (mBluetoothGatt != null) {
-            mBluetoothGatt.disconnect();
-        }
-        if (mBluetoothGatt != null) {
+        this.bluetoothLEConnectState = BluetoothLEConnectState.CONNECT_IDLE;
+        if (this.bluetoothGatt != null) {
+            this.bluetoothGatt.disconnect();
+            this.bluetoothGatt.close();
             refreshDeviceCache();
         }
-        if (mBluetoothGatt != null) {
-            mBluetoothGatt.close();
-        }
     }
 
-    private static final class MainHandler extends Handler {
-
-        final String TAG = "MainHandler";
-
-        @Override
-        public void handleMessage(Message msg) {
-
-            Log.d(TAG, "handleMessage: " + msg. what);
-            switch (msg.what) {
-
-                case BleMsg.MSG_CONNECT_FAIL: {
-                    /*
-                    BleConnectStateParameter para = (BleConnectStateParameter) msg.obj;
-                    BleGattCallback callback = para.getCallback();
-                    BluetoothGatt gatt = para.getGatt();
-                    int status = para.getStatus();
-                    if (callback != null)
-                        callback.onConnectFail(new ConnectException(gatt, status));
-                    */
-                    break;
-                }
-
-                case BleMsg.MSG_DISCONNECTED: {
-                    /*
-                    BleConnectStateParameter para = (BleConnectStateParameter) msg.obj;
-                    BleGattCallback callback = para.getCallback();
-                    BluetoothGatt gatt = para.getGatt();
-                    boolean isActive = para.isAcitive();
-                    BleDevice bleDevice = para.getBleDevice();
-                    int status = para.getStatus();
-                    if (callback != null)
-                        callback.onDisConnected(isActive, bleDevice, gatt, status);
-                    */
-                    break;
-                }
-
-                case BleMsg.MSG_CONNECT_SUCCESS: {
-                    /*
-                    BleConnectStateParameter para = (BleConnectStateParameter) msg.obj;
-                    BleGattCallback callback = para.getCallback();
-                    BluetoothGatt gatt = para.getGatt();
-                    BleDevice bleDevice = para.getBleDevice();
-                    int status = para.getStatus();
-                    if (callback != null)
-                        callback.onConnectSuccess(bleDevice, gatt, status);
-                    */
-                    break;
-                }
-
-                default:
-                    super.handleMessage(msg);
-                    break;
-            }
-        }
-    }
     private BluetoothGattCallback coreGattCallback = new BluetoothGattCallback() {
 
         @Override
@@ -204,9 +139,15 @@ public class BluetoothLE {
 
                 ManageBluetoothLE.getInstance().removeBleutoothLE(BluetoothLE.this);
 
-                if (mBluetoothLEConnectState == BluetoothLEConnectState.CONNECT_CONNECTING) {
-                    mBluetoothLEConnectState = BluetoothLEConnectState.CONNECT_FAILURE;
+                if (bluetoothLEConnectState == BluetoothLEConnectState.CONNECT_CONNECTING) {
+                    bluetoothLEConnectState = BluetoothLEConnectState.CONNECT_FAILURE;
 
+                    if (isMainThread) {
+                        Log.i(TAG, "Main Thread....");
+                    }
+                    //mBleConnectCallback.onConnectFail(BluetoothLEConnectState.CONNECT_FAILURE);
+
+                    /*
                     if (isMainThread) {
                         Message message = handler.obtainMessage();
                         message.what = BleMsg.MSG_CONNECT_FAIL;
@@ -216,22 +157,15 @@ public class BluetoothLE {
                         if (mBleConnectCallback != null)
                             mBleConnectCallback.onConnectFail(BluetoothLEConnectState.CONNECT_FAILURE);
                     }
+                    */
 
-                } else if (mBluetoothLEConnectState == BluetoothLEConnectState.CONNECT_CONNECTED) {
-                    mBluetoothLEConnectState = BluetoothLEConnectState.CONNECT_DISCONNECT;
+                } else if (bluetoothLEConnectState == BluetoothLEConnectState.CONNECT_CONNECTED) {
+                    bluetoothLEConnectState = BluetoothLEConnectState.CONNECT_DISCONNECT;
 
                     if (isMainThread) {
-                        Message message = handler.obtainMessage();
-                        message.what = BleMsg.MSG_DISCONNECTED;
-                        //BleConnectStateParameter para = new BleConnectStateParameter(mBleConnectCallback, gatt, status);
-                        //para.setAcitive(isActiveDisconnect);
-                        //para.setBleDevice(getDeviceBluetoothLE());
-                        //message.obj = para;
-                        handler.sendMessage(message);
-                    } else {
-                        if (mBleConnectCallback != null)
-                            mBleConnectCallback.onDisConnect(getDeviceBluetoothLE(), gatt, BluetoothLEConnectState.CONNECT_DISCONNECT);
+                        Log.i(TAG, "Main Thread....");
                     }
+                    //mBleConnectCallback.onDisConnect(getDeviceBluetoothLE(), gatt, BluetoothLEConnectState.CONNECT_DISCONNECT);
                 }
             }
         }
@@ -244,38 +178,33 @@ public class BluetoothLE {
                     + '\n' + "currentThread: " + Thread.currentThread().getId());
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                mBluetoothGatt = gatt;
-                mBluetoothLEConnectState = BluetoothLEConnectState.CONNECT_CONNECTED;
+                bluetoothGatt = gatt;
+                bluetoothLEConnectState = BluetoothLEConnectState.CONNECT_CONNECTED;
                 isActiveDisconnect = false;
-
                 ManageBluetoothLE.getInstance().addBluetoothLE(BluetoothLE.this);
 
-                if (isMainThread) {
-                    Message message = handler.obtainMessage();
-                    message.what = BleMsg.MSG_CONNECT_SUCCESS;
-                    //BleConnectStateParameter para = new BleConnectStateParameter(mBleConnectCallback, gatt, status);
-                    //para.setBleDevice(getDeviceBluetoothLE);
-                    //message.obj = para;
-                    handler.sendMessage(message);
-                    mBleConnectCallback.onConnectSuccess(gatt, BluetoothLEConnectState.CONNECT_CONNECTED);
-                } else {
-                    if (mBleConnectCallback != null)
-                        mBleConnectCallback.onConnectSuccess(gatt, BluetoothLEConnectState.CONNECT_CONNECTED);
+                BluetoothGattCharacteristic characteristic =
+                        bluetoothGatt.getService(UUID.fromString(BleProfile.SERVICE_UUID)).getCharacteristic(UUID.fromString(BleProfile.NOTIFY_UUID));
+                for (BluetoothGattDescriptor descriptor : characteristic.getDescriptors()) {
+                    descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                    bluetoothGatt.writeDescriptor(descriptor);
                 }
+
+                bluetoothGatt.setCharacteristicNotification(characteristic, true);
+
+                if (isMainThread) {
+                    Log.i(TAG, "Main Thread....");
+                }
+                //mBleConnectCallback.onConnectSuccess(gatt, BluetoothLEConnectState.CONNECT_CONNECTED);
+
             } else {
                 closeBluetoothGatt();
-
-                mBluetoothLEConnectState = BluetoothLEConnectState.CONNECT_FAILURE;
+                bluetoothLEConnectState = BluetoothLEConnectState.CONNECT_FAILURE;
 
                 if (isMainThread) {
-                    Message message = handler.obtainMessage();
-                    message.what = BleMsg.MSG_CONNECT_FAIL;
-                    //message.obj = new BleConnectStateParameter(mBleConnectCallback, gatt, status);
-                    handler.sendMessage(message);
-                } else {
-                    if (mBleConnectCallback != null)
-                        mBleConnectCallback.onConnectFail(BluetoothLEConnectState.CONNECT_FAILURE);
+                    Log.i(TAG, "Main Thread....");
                 }
+                //mBleConnectCallback.onConnectFail(BluetoothLEConnectState.CONNECT_FAILURE);
             }
         }
 
@@ -283,24 +212,29 @@ public class BluetoothLE {
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             super.onCharacteristicChanged(gatt, characteristic);
 
-            Log.i(TAG, "BluetoothGattCallback：onCharacteristicRead ");
-            Log.e(TAG, "Read" + characteristic.getUuid().toString());
+            Log.i(TAG, "BluetoothGattCallback：onCharacteristicChanged ");
+            Log.e(TAG, "Read: " + characteristic.getUuid().toString());
 
-                            Message message = handler.obtainMessage();
-                            message.what = BleMsg.MSG_CHA_NOTIFY_DATA_CHANGE;
-                            //message.obj = bleNotifyCallback;
-                            //Bundle bundle = new Bundle();
-                            //bundle.putByteArray(BleMsg.KEY_NOTIFY_BUNDLE_VALUE, characteristic.getValue());
-                            //message.setData(bundle);
-                            handler.sendMessage(message);
+            final byte[] d = characteristic.getValue();
+            String hexaStr = bytes2String(d,d.length);
+            Log.e(TAG, "rcv=" + hexaStr);
+            //handler.sendMessage(handler.obtainMessage(1, hexaStr));
+
+            if (isMainThread) {
+                Log.d(TAG, "Main Thread....");
+            } else {
+                Log.d(TAG, "Callback Handler....");
+            }
         }
 
+        /*
         @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
             super.onDescriptorWrite(gatt, descriptor, status);
 
             descriptor.getCharacteristic().getUuid().toString();
         }
+        */
 
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
@@ -309,7 +243,13 @@ public class BluetoothLE {
                     + '\n' + "status: " + status
                     + '\n' + "currentThread: " + Thread.currentThread().getId());
 
-            characteristic.getUuid().toString();
+            if (isMainThread) {
+                Log.d(TAG, "Main Thread....");
+            } else {
+                Log.d(TAG, "Callback Handler....");
+            }
+
+
 
         }
 
@@ -320,7 +260,13 @@ public class BluetoothLE {
                     + '\n' + "status: " + status
                     + '\n' + "currentThread: " + Thread.currentThread().getId());
 
-            Log.e(TAG, "Read" + characteristic.getUuid().toString());
+            if (isMainThread) {
+                Log.d(TAG, "Main Thread....");
+            } else {
+                Log.d(TAG, "Callback Handler....");
+            }
+
+            Log.e(TAG, "Read: " + characteristic.getUuid().toString());
 
         }
 
@@ -328,13 +274,30 @@ public class BluetoothLE {
         public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
             super.onReadRemoteRssi(gatt, rssi, status);
 
-            Log.i(TAG, "rssi: " + rssi + ", status: " + status);
+            Log.i(TAG, "BluetoothGattCallback：onReadRemoteRssi "
+                    + '\n' + "rssi: " + rssi
+                    + '\n' + "status: " + status
+                    + '\n' + "currentThread: " + Thread.currentThread().getId());
         }
 
         @Override
         public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
             super.onMtuChanged(gatt, mtu, status);
-            Log.i(TAG, "mtu: " + mtu + ", status: " + status);
+            Log.i(TAG, "BluetoothGattCallback：onMtuChanged "
+                    + '\n' + "mtu: " + mtu
+                    + '\n' + "status: " + status
+                    + '\n' + "currentThread: " + Thread.currentThread().getId());
         }
     };
+
+
+
+    private String bytes2String(byte[] b, int count) {
+        ArrayList<String> result = new ArrayList<String>();
+        for (int i = 0; i < count; i++) {
+            String myInt = Integer.toHexString((int) (b[i] & 0xFF));
+            result.add(myInt);
+        }
+        return TextUtils.join(" ", result);
+    }
 }

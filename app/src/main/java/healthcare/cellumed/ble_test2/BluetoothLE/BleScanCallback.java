@@ -10,5 +10,5 @@ public abstract class BleScanCallback extends BaseCallback {
 
     public abstract void onStartScan();
     public abstract void onScanning();
-    public abstract void onProcessResult(BluetoothDevice scanResult);
+    public abstract void onProcessResult(BLEDevice dev);
 }

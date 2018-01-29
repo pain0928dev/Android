@@ -6,7 +6,6 @@ package healthcare.cellumed.ble_test2.BluetoothLE;
 
 public enum BluetoothLEConnectState {
 
-
         CONNECT_IDLE(0x00),
         CONNECT_CONNECTING(0x01),
         CONNECT_CONNECTED(0x02),
