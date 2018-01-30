@@ -8,16 +8,18 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Message;
+import android.text.TextUtils;
 import android.util.Log;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
-import java.util.concurrent.BlockingDeque;
 
 import healthcare.cellumed.ble_test2.BleProfile;
+import healthcare.cellumed.ble_test2.Util.HexaDump;
 import healthcare.cellumed.ble_test2.Util.RingBuffer;
+import healthcare.cellumed.ble_test2.Util.RingByteBuffer;
 
 /**
  * Created by ljh0928 on 2018. 1. 4..
@@ -25,12 +27,14 @@ import healthcare.cellumed.ble_test2.Util.RingBuffer;
 
 public class ManageBluetoothLE {
 
-    final String TAG = "ManageBluetoothLE";
+    private static final String TAG = "ManageBluetoothLE";
+    private static final int MAX_BLUETOOTHLE = 4;
 
     private Application application;
     private BleScanner bleScanner;
     private HashMap<String, BluetoothLE> bluetoothLEHashMap = null;
     private RingBuffer<Send2Gatt> sendBuffer = new RingBuffer<Send2Gatt>(16);
+
 
     public static ManageBluetoothLE getInstance() {
         return ManagerBleHolder.manageBluetoothLE;
@@ -45,6 +49,7 @@ public class ManageBluetoothLE {
             application = app;
             bluetoothLEHashMap = new HashMap<String, BluetoothLE>();
 
+
             eableBluetooth();
             //bleScanRuleConfig = new BleScanRuleConfig();
             bleScanner = BleScanner.getInstance(application.getApplicationContext());
@@ -55,7 +60,6 @@ public class ManageBluetoothLE {
             private final String TAG = "ManageBluetoothLEThread";
 
             // Todo: if There is data in buffer
-
             public void run(){
 
                 while(true){
@@ -82,6 +86,7 @@ public class ManageBluetoothLE {
     }
 
     public void addBluetoothLE(BluetoothLE ble){
+
         if(bluetoothLEHashMap != null && !bluetoothLEHashMap.containsKey(ble.getBluetoothDeviceKey())){
             Log.d(TAG, "AddbluetoothLE" + ble.getBluetoothDevice() + ":" + ble.getBluetoothDeviceKey());
             bluetoothLEHashMap.put(ble.getBluetoothDeviceKey(), ble);
@@ -124,19 +129,26 @@ public class ManageBluetoothLE {
 
         // TODO: 2018. 1. 23.
         // 연결 시도후 정상적으로 장치가 연결 되었음을 알려 줘야한다
+        if(bluetoothLEHashMap.size() == MAX_BLUETOOTHLE) {
+            callback.onConnectFail(0);
+            return null;
+        }
 
         if(callback == null){
             throw new IllegalArgumentException("BleConnectCallback is null");
         }
 
         if (ble_dev == null) {
-            callback.onConnectFail(BluetoothLEConnectState.CONNECT_FAILURE);
+            callback.onConnectFail(0);
         } else {
             BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
             final BluetoothDevice device = bluetoothAdapter.getRemoteDevice(ble_dev.getAddress());
             BluetoothLE bleBluetooth = new BluetoothLE(device);
+            bleBluetooth.setHandler(handler);
+            bleBluetooth.setBluetoothLECallback(bluetoothLECallback);
+
             //boolean autoConnect = bleScanRuleConfig.isAutoConnect();
-            callback.onStartConnect(BluetoothLEConnectState.CONNECT_CONNECTING);
+            callback.onStartConnect();
             return bleBluetooth.connect(device, false);
         }
         return null;
@@ -152,8 +164,9 @@ public class ManageBluetoothLE {
         }
     }
 
-    public void read(BLEDevice dev){
+    public byte[] read(BLEDevice dev){
 
+        /*
         // 연결된 리스트중에 전달받은 인자와 같은걸 disconnect 시킨다
         String key = makeKey(dev);
         if(bluetoothLEHashMap.containsKey(key)){
@@ -167,6 +180,19 @@ public class ManageBluetoothLE {
 
             gatt.readCharacteristic(characteristic);
         }
+        */
+
+        String key = makeKey(dev);
+        if(bluetoothLEHashMap.containsKey(key)) {
+            Log.e(TAG, "read");
+            BluetoothLE ble = bluetoothLEHashMap.get(key);
+
+            if(ble.readBuffer.getSize() > 0){
+                return ble.readBuffer.pop(ble.readBuffer.getSize());
+            }
+        }
+
+        return null;
     }
 
     public void write(BLEDevice dev){
@@ -187,7 +213,7 @@ public class ManageBluetoothLE {
             }
 
             String s = makeData("01", "");
-            byte data[] = hexStringToByteArray(s);
+            byte data[] = HexaDump.toByteArray(s);
             characteristic.setValue(data);
             sendBuffer.push(new Send2Gatt(gatt, characteristic));
             /*
@@ -210,17 +236,6 @@ public class ManageBluetoothLE {
         }
     }
 
-    // util
-    public byte[] hexStringToByteArray(String s) {
-        int len = s.length();
-        byte[] data = new byte[len / 2];
-        for (int i = 0; i < len - 1; i += 2) {
-            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
-                    + Character.digit(s.charAt(i + 1), 16));
-        }
-        return data;
-    }
-
     private String makeData(String cmd, String data) {
         String header = "21";
         String footer = "75";
@@ -240,9 +255,81 @@ public class ManageBluetoothLE {
         return header + outdata + String.format("%02X", checkSum) + footer;
     }
 
+    public Handler getHandler(){
+        return handler;
+    }
+
+    public BluetoothLECallback getCallback(){
+        return bluetoothLECallback;
+    }
+
+    public Handler handler = new Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+            Log.i(TAG, "Msg: " + msg.what);
+
+            switch (msg.what){
+
+            }
+        }
+    };
+
+    public BluetoothLECallback bluetoothLECallback = new BluetoothLECallback() {
+
+        @Override
+        public void onConnectionState(BluetoothDevice bluetoothDevice, BluetoothLEConnectState bluetoothLEConnectState) {
+            Log.i(TAG, "onConnectionState:: " + bluetoothLEConnectState.toString());
+            switch (bluetoothLEConnectState){
+                case CONNECT_CONNECTED:
+                    break;
+                case CONNECT_DISCONNECT:
+                    break;
+                case CONNECT_FAILURE:
+                    break;
+            }
+        }
+
+        @Override
+        public void onChanged(BluetoothDevice bluetoothDevice, byte[] inBytes) {
+            Log.i(TAG, "onChanged::[" + bluetoothDevice.getName() + "] -> " +
+                    HexaDump.toString(inBytes, inBytes.length));
+
+        }
+
+        @Override
+        public void onRead(BluetoothDevice bluetoothDevice, byte[] inBytes, int status) {
+            String hexaStr = bytes2String(inBytes, inBytes.length);
+            Log.i(TAG, "onRead:: " + hexaStr);
+            Log.i(TAG, "status: " + status);
+
+        }
+
+        @Override
+        public void onReadRssi(BluetoothDevice bluetoothDevice, int rssi, int status) {
+            Log.i(TAG, "onReadRssi:: " + rssi + ", " + status );
+        }
+
+        @Override
+        public void onReadMtu(BluetoothDevice bluetoothDevice, int mtu, int status) {
+            Log.i(TAG, "onReadRssi:: " + mtu + ", " + status );
+        }
+
+        @Override
+        public void onWrite(BluetoothDevice bluetoothDevice, int status) {
+            Log.i(TAG, "onWrite:: " + status);
+        }
+    };
 
 
 
+    private String bytes2String(byte[] b, int count) {
+        ArrayList<String> result = new ArrayList<String>();
+        for (int i = 0; i < count; i++) {
+            String myInt = Integer.toHexString((int) (b[i] & 0xFF));
+            result.add(myInt);
+        }
+        return TextUtils.join(" ", result);
+    }
     //private RingBuffer<byte> recvByteBuffer = new RingBuffer<byte>(8192);
 
     /*
@@ -274,5 +361,12 @@ public class ManageBluetoothLE {
 
     }
     */
+
+
+    public class ReadBluetoothData{
+
+
+        private RingByteBuffer readBuffer;
+    }
 
 }

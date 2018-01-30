@@ -31,6 +31,7 @@ import healthcare.cellumed.ble_test2.BluetoothLE.BleScanCallback;
 import healthcare.cellumed.ble_test2.BluetoothLE.BluetoothLEConnectState;
 import healthcare.cellumed.ble_test2.BluetoothLE.DeviceBluetoothLE;
 import healthcare.cellumed.ble_test2.BluetoothLE.ManageBluetoothLE;
+import healthcare.cellumed.ble_test2.Util.HexaDump;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -48,7 +49,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         btnScan = (Button)findViewById(R.id.bt_scan);
-        btnConnect = (Button)findViewById(R.id.bt_connect);
+        btnConnect = (Button)findViewById(R.id.bt_connect1);
 
         scanBLEDeviceList = new ArrayList<BLEDevice>();
 
@@ -126,18 +127,19 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
-    final static int MAX_BLE_DEVICE_COUNT = 1;
+    final static int MAX_BLE_DEVICE_COUNT = 2;
     public void AddDevice(BLEDevice dev){
 
         if(checkEqualObject(dev)){
             ManageBluetoothLE.getInstance().stopScan();
             return;
         } else {
-            Log.i(TAG, "Add BLE Device...");
+            Log.i(TAG, "Add BLE Device (" + dev.getName() + ", " + dev.getAddress() + ")");
             scanBLEDeviceList.add(dev);
         }
 
         if(scanBLEDeviceList.size() == MAX_BLE_DEVICE_COUNT){
+            Log.i(TAG, "Couldn't Add because of Maximum");
             if(btnScan.getText().equals("stop")){
                 btnScan.setText("scan");
                 ManageBluetoothLE.getInstance().stopScan();
@@ -173,88 +175,152 @@ public class MainActivity extends AppCompatActivity {
             public void onProcessResult(BLEDevice dev) {
                 if(dev.getName() == null) return;
                 //if(scanResult.getName().contains("CRD-K100")) {
-                if(dev.getName().contains("CRD-K100(E2C2)")) {
-                    Log.i(TAG, "Scan Device : " + dev.getName() + ", " + dev.getAddress());
+                if(dev.getName().contains("CRD-K100")) {
+                    Log.d(TAG, "Scan Device : " + dev.getName() + ", " + dev.getAddress());
                     AddDevice(dev);
                 }
             }
         });
     }
 
+    /*
     public void onClickConnect(View v){
 
         BLEDevice bleDev = null;
         for(int i=0; i < scanBLEDeviceList.size(); i++){
             bleDev = scanBLEDeviceList.get(i);
+            Log.i(TAG, "Connect: " + bleDev.getName());
         }
 
         ManageBluetoothLE.getInstance().connect(bleDev, new BleConnectCallback() {
 
             @Override
-            public void onStartConnect(BluetoothLEConnectState status) {
+            public void onStartConnect() {
                 Log.d(TAG, "onStartConnect");
             }
 
             @Override
-            public void onConnectSuccess(BluetoothGatt gatt, BluetoothLEConnectState status) {
+            public void onConnectSuccess(BluetoothGatt gatt, int status) {
                 Log.d(TAG, "onConnectSuccess");
             }
 
             @Override
-            public void onConnectFail(BluetoothLEConnectState status) {
+            public void onConnectFail(int status) {
                 Log.d(TAG, "onConnectFail");
             }
 
             @Override
-            public void onDisConnect(DeviceBluetoothLE dev, BluetoothGatt gatt, BluetoothLEConnectState status) {
+            public void onDisConnect(BluetoothGatt bluetoothGatt, int status) {
                 Log.d(TAG, "onDisConnect");
             }
         });
     }
 
-    public void onClickDisconnect(View v){
-        Log.e(TAG, "onClickDisconnect");
-
-        Iterator iterator = scanBLEDeviceList.iterator();
-        BLEDevice devBle = null;
-        while (iterator.hasNext()) {
-            Map.Entry entry = (Map.Entry) iterator.next();
-            Object obj = entry.getValue();
-            devBle = (BLEDevice) obj;
-            Log.d(TAG, "Get.............................");
-        }
-        ManageBluetoothLE.getInstance().disconnect(devBle);
-    }
-
     public void onClickRead(View v){
-        Log.e(TAG, "onClickRead");
+        Log.d(TAG, "onClickRead");
+        BLEDevice bleDev = null;
+        for(int i=0; i < scanBLEDeviceList.size(); i++){
+            bleDev = scanBLEDeviceList.get(i);
 
-        Iterator iterator = scanBLEDeviceList.iterator();
-        BLEDevice devBle = null;
-        while (iterator.hasNext()) {
-            Map.Entry entry = (Map.Entry) iterator.next();
-            Object obj = entry.getValue();
-            devBle = (BLEDevice) obj;
-            Log.d(TAG, "Get.............................");
+            byte[] bytes = ManageBluetoothLE.getInstance().read(bleDev);
+            Log.i(TAG, "Device(" + bleDev.getName() + ") -> " +
+                    HexaDump.toString(bytes, bytes.length));
         }
-
-        ManageBluetoothLE.getInstance().read(devBle);
-
     }
 
     public void onClickWrite(View v){
-        Log.e(TAG, "onClickWrite");
-
-        Iterator iterator = scanBLEDeviceList.iterator();
-        BLEDevice devBle = null;
-        while (iterator.hasNext()) {
-            Map.Entry entry = (Map.Entry) iterator.next();
-            Object obj = entry.getValue();
-            devBle = (BLEDevice) obj;
-            Log.d(TAG, "Get.............................");
+        Log.d(TAG, "onClickWrite");
+        BLEDevice bleDev = null;
+        for(int i=0; i < scanBLEDeviceList.size(); i++){
+            bleDev = scanBLEDeviceList.get(i);
+            ManageBluetoothLE.getInstance().write(bleDev);
+            Log.i(TAG, "Device: " + bleDev.getName());
         }
+    }
+    */
 
-        ManageBluetoothLE.getInstance().write(devBle);
+    public void onClickConnect1(View v){
+
+        BLEDevice bleDev = scanBLEDeviceList.get(0);
+            Log.i(TAG, "Connect: " + bleDev.getName());
+
+        startConect(bleDev);
+    }
+    public void onClickConnect2(View v){
+
+        BLEDevice bleDev = scanBLEDeviceList.get(1);
+        Log.i(TAG, "Connect: " + bleDev.getName());
+
+        startConect(bleDev);
+    }
+
+    public void startConect(final BLEDevice bleDev){
+        ManageBluetoothLE.getInstance().connect(bleDev, new BleConnectCallback() {
+
+            @Override
+            public void onStartConnect() {
+                Log.d(TAG, "onStartConnect");
+                Log.d(TAG, "Name: " + bleDev.getName());
+            }
+
+            @Override
+            public void onConnectSuccess(BluetoothGatt gatt, int status) {
+                Log.d(TAG, "onConnectSuccess");
+            }
+
+            @Override
+            public void onConnectFail(int status) {
+                Log.d(TAG, "onConnectFail");
+            }
+
+            @Override
+            public void onDisConnect(BluetoothGatt bluetoothGatt, int status) {
+                Log.d(TAG, "onDisConnect");
+            }
+        });
+    }
+
+    public void onClickRead1(View v){
+        Log.d(TAG, "onClickRead");
+        BLEDevice bleDev = scanBLEDeviceList.get(0);
+        byte[] bytes = ManageBluetoothLE.getInstance().read(bleDev);
+        if(bytes != null)
+            Log.i(TAG, "Device(" + bleDev.getName() + ") -> " +
+                    HexaDump.toString(bytes, bytes.length));
+    }
+
+    public void onClickRead2(View v){
+        Log.d(TAG, "onClickRead");
+        BLEDevice bleDev = scanBLEDeviceList.get(1);
+        byte[] bytes = ManageBluetoothLE.getInstance().read(bleDev);
+        if(bytes != null)
+            Log.i(TAG, "Device(" + bleDev.getName() + ") -> " +
+                    HexaDump.toString(bytes, bytes.length));
+    }
+
+    public void onClickWrite1(View v){
+        Log.d(TAG, "onClickWrite");
+        BLEDevice bleDev = scanBLEDeviceList.get(0);
+            ManageBluetoothLE.getInstance().write(bleDev);
+            Log.i(TAG, "Device: " + bleDev.getName());
+    }
+
+    public void onClickWrite2(View v){
+        Log.d(TAG, "onClickWrite");
+        BLEDevice bleDev = scanBLEDeviceList.get(1);
+        ManageBluetoothLE.getInstance().write(bleDev);
+        Log.i(TAG, "Device: " + bleDev.getName());
+    }
+
+    public void onClickDisconnect(View v){
+        Log.d(TAG, "onClickDisconnect");
+
+        BLEDevice bleDev = null;
+        for(int i=0; i < scanBLEDeviceList.size(); i++){
+            bleDev = scanBLEDeviceList.get(i);
+            ManageBluetoothLE.getInstance().disconnect(bleDev);
+            Log.i(TAG, "Device: " + bleDev.getName());
+        }
     }
 
     public void onMove(View v){

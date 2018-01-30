@@ -8,8 +8,8 @@ import android.bluetooth.BluetoothGatt;
 
 public abstract class BleConnectCallback extends BaseCallback {
 
-    public abstract void onStartConnect(BluetoothLEConnectState status);
-    public abstract void onConnectSuccess(BluetoothGatt gatt, BluetoothLEConnectState status);
-    public abstract void onConnectFail(BluetoothLEConnectState status);
-    public abstract void onDisConnect(DeviceBluetoothLE dev, BluetoothGatt gatt, BluetoothLEConnectState status);
+    public abstract void onStartConnect();
+    public abstract void onConnectSuccess(BluetoothGatt gatt, int status);
+    public abstract void onConnectFail(int status);
+    public abstract void onDisConnect(BluetoothGatt bluetoothGatt, int status);
 }

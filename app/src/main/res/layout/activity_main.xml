@@ -23,12 +23,24 @@
         android:onClick="onClickScan"
         android:text="scan"/>
 
-    <Button
-        android:id="@+id/bt_connect"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:onClick="onClickConnect"
-        android:text="connect"/>
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/bt_connect1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="onClickConnect1"
+            android:text="connect1"/>
+
+        <Button
+            android:id="@+id/bt_connect2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="onClickConnect2"
+            android:text="connect2"/>
+    </LinearLayout>
 
     <Button
         android:id="@+id/bt_disconnect"
@@ -36,18 +48,47 @@
         android:layout_height="wrap_content"
         android:onClick="onClickDisconnect"
         android:text="disconnect"/>
-    <Button
-        android:id="@+id/bt_read"
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:onClick="onClickRead"
-        android:text="Read"/>
-    <Button
-        android:id="@+id/bt_write"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:onClick="onClickWrite"
-        android:text="Write"/>
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/bt_read1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="onClickRead1"
+            android:text="Read1"/>
+
+        <Button
+            android:id="@+id/bt_read2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="onClickRead2"
+            android:text="Read2"/>
+
+    </LinearLayout>
+
+
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+        <Button
+            android:id="@+id/bt_write1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="onClickWrite1"
+            android:text="Write1"/>
+
+        <Button
+            android:id="@+id/bt_write2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="onClickWrite2"
+            android:text="Write2"/>
+
+    </LinearLayout>
 
     <Button
         android:id="@+id/bt_mv_second_act"

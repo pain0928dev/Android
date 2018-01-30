@@ -18,7 +18,6 @@ public class BLEDevice {
     public String getName(){
         return this.name;
     }
-
     public String getAddress(){
         return this.address;
     }

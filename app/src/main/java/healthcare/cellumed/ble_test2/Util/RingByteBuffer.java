@@ -6,68 +6,58 @@ package healthcare.cellumed.ble_test2.Util;
 
 public class RingByteBuffer {
 
-    private final int DEFAULT_MIN_LENGTH = 256;
+    private final static int DEFAULT_MIN_LENGTH = 1024;
 
-    private byte[] mBuffer;
-    private int length;
-    private int mMax_length = DEFAULT_MIN_LENGTH;
-    private int sp;
-    private int ep;
+    private byte[] byteBuffers;
+    private int bufferLength = DEFAULT_MIN_LENGTH;
+    private int head;
+    private int tail;
 
 
-    RingByteBuffer(int capacity){
-        if(capacity < mMax_length) {
-            mBuffer = new byte[mMax_length];
+    public RingByteBuffer(int len){
+        if(bufferLength < len) {
+            byteBuffers = new byte[len];
         }
-        else{
-            mMax_length = capacity;
-            mBuffer = new byte[mMax_length];
-        }
-        sp = 0;
-        ep = 0;
-    }
-
-
-    public boolean isEmpty() {
-        if(sp == ep) return true;
-        return false;
+        clear();
     }
 
     public void push(byte b) {
-        mBuffer[ep] = b;
-        ep++;
+        byteBuffers[tail++] = b;
+        tail = (tail % bufferLength);
     }
 
-    public void push(byte[] b, int len) {
+    public void push(byte[] b) {
 
-        for (int i = 0; i < len; i++) {
-            mBuffer[ep] = b[i];
-            ep++;
-        }
-        checkEp();
-    }
-
-    public byte[] pop(){
-        if(isEmpty()) return null;
-        byte[] retB = new byte[1];
-        retB[0] = mBuffer[sp+0];
-        return retB;
+        System.arraycopy(b, 0, byteBuffers, head, b.length);
+        tail += b.length;
+        tail = (tail % bufferLength);
     }
 
     public byte[] pop(int len){
         if(isEmpty()) return null;
-        byte[] retB = new byte[len];
-        for(int i=0; i<len; i++){
-            retB[i] = mBuffer[sp+i];
-        }
-        return retB;
+        if(getSize() < len) return null;
+
+        byte[] bytes = new byte[len];
+        System.arraycopy(byteBuffers, head, bytes, 0, len);
+        head += len;
+        head = (head % bufferLength);
+
+        return bytes;
     }
 
-    private void checkSp() {
-        if(sp == mMax_length) sp = 0;
+    public boolean isEmpty() {
+
+        if(head == tail) return true;
+        return false;
     }
 
-    private void checkEp() {
-        if(ep == mMax_length) ep = 0;
+    public int getSize(){
+        return (tail - (head + bufferLength) % bufferLength);
     }
+
+    public void clear(){
+        head = 0;
+        tail = 0;
+    }
+
 }

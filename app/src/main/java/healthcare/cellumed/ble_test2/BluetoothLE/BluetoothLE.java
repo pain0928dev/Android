@@ -7,17 +7,15 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.os.Build;
 import android.os.Handler;
-import android.os.Looper;
-import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Objects;
 import java.util.UUID;
 
 import healthcare.cellumed.ble_test2.BleProfile;
+import healthcare.cellumed.ble_test2.Util.RingByteBuffer;
 
 import static android.bluetooth.BluetoothDevice.TRANSPORT_LE;
 
@@ -34,23 +32,40 @@ public class BluetoothLE {
     private BluetoothGatt bluetoothGatt;
     private boolean isActiveDisconnect = false;
     private boolean isMainThread = false;
-
-
     private Handler handler = null;
-    private Objects callBack = null;
+    private BluetoothLECallback bluetoothLECallback = null;
+
+    public RingByteBuffer readBuffer;
 
     BluetoothLE(BluetoothDevice dev){
         bluetoothDevice = dev;
+        initBuffer();
+        Log.d(TAG, "New BluetoothDevice: " + bluetoothDevice.getName() + ", " + bluetoothDevice.getAddress());
     }
 
     BluetoothLE(BluetoothDevice device, Handler handle){
         this.bluetoothDevice = device;
         this.handler = handle;
+        initBuffer();
     }
 
-    BluetoothLE(BluetoothDevice device, Objects callback){
+    BluetoothLE(BluetoothDevice device, BluetoothLECallback bluetoothLECallback){
         this.bluetoothDevice = device;
-        this.callBack = callback;
+        this.bluetoothLECallback = bluetoothLECallback;
+        initBuffer();
+    }
+
+    public void initBuffer(){
+        if(readBuffer == null)
+            readBuffer = new RingByteBuffer(4096);
+    }
+
+    public void setHandler(Handler handler){
+        this.handler = handler;
+    }
+
+    public void setBluetoothLECallback(BluetoothLECallback bluetoothLECallback){
+        this.bluetoothLECallback = bluetoothLECallback;
     }
 
     public BluetoothDevice getBluetoothDevice(){
@@ -102,11 +117,11 @@ public class BluetoothLE {
             final Method refresh = BluetoothGatt.class.getMethod("refresh");
             if (refresh != null) {
                 boolean success = (Boolean) refresh.invoke(getBluetoothGatt());
-                Log.i(TAG, "refreshDeviceCache, is success:  " + success);
+                Log.d(TAG, "refreshDeviceCache, is success:  " + success);
                 return success;
             }
         } catch (Exception e) {
-            Log.i(TAG, "exception occur while refreshing device: " + e.getMessage());
+            Log.e(TAG, "exception occur while refreshing device: " + e.getMessage());
             e.printStackTrace();
         }
         return false;
@@ -126,7 +141,7 @@ public class BluetoothLE {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             super.onConnectionStateChange(gatt, status, newState);
-            Log.i(TAG, "BluetoothGattCallback：onConnectionStateChange "
+            Log.d(TAG, "BluetoothGattCallback：onConnectionStateChange "
                     + '\n' + "status: " + status
                     + '\n' + "newState: " + newState
                     + '\n' + "currentThread: " + Thread.currentThread().getId());
@@ -141,31 +156,16 @@ public class BluetoothLE {
 
                 if (bluetoothLEConnectState == BluetoothLEConnectState.CONNECT_CONNECTING) {
                     bluetoothLEConnectState = BluetoothLEConnectState.CONNECT_FAILURE;
-
-                    if (isMainThread) {
-                        Log.i(TAG, "Main Thread....");
-                    }
-                    //mBleConnectCallback.onConnectFail(BluetoothLEConnectState.CONNECT_FAILURE);
-
-                    /*
-                    if (isMainThread) {
-                        Message message = handler.obtainMessage();
-                        message.what = BleMsg.MSG_CONNECT_FAIL;
-                        //message.obj = new BleConnectStateParameter(mBleConnectCallback, gatt, status);
-                        handler.sendMessage(message);
-                    } else {
-                        if (mBleConnectCallback != null)
-                            mBleConnectCallback.onConnectFail(BluetoothLEConnectState.CONNECT_FAILURE);
-                    }
-                    */
-
                 } else if (bluetoothLEConnectState == BluetoothLEConnectState.CONNECT_CONNECTED) {
                     bluetoothLEConnectState = BluetoothLEConnectState.CONNECT_DISCONNECT;
+                }
 
-                    if (isMainThread) {
-                        Log.i(TAG, "Main Thread....");
-                    }
-                    //mBleConnectCallback.onDisConnect(getDeviceBluetoothLE(), gatt, BluetoothLEConnectState.CONNECT_DISCONNECT);
+                if (isMainThread) { Log.d(TAG, "Main Thread...."); }
+
+                if(handler != null) { handler.obtainMessage(status, gatt); }
+
+                if(bluetoothLECallback != null) {
+                    bluetoothLECallback.onConnectionState(bluetoothDevice, bluetoothLEConnectState);
                 }
             }
         }
@@ -173,7 +173,7 @@ public class BluetoothLE {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             super.onServicesDiscovered(gatt, status);
-            Log.i(TAG, "BluetoothGattCallback：onServicesDiscovered "
+            Log.d(TAG, "BluetoothGattCallback：onServicesDiscovered "
                     + '\n' + "status: " + status
                     + '\n' + "currentThread: " + Thread.currentThread().getId());
 
@@ -192,38 +192,30 @@ public class BluetoothLE {
 
                 bluetoothGatt.setCharacteristicNotification(characteristic, true);
 
-                if (isMainThread) {
-                    Log.i(TAG, "Main Thread....");
-                }
-                //mBleConnectCallback.onConnectSuccess(gatt, BluetoothLEConnectState.CONNECT_CONNECTED);
-
             } else {
                 closeBluetoothGatt();
-                bluetoothLEConnectState = BluetoothLEConnectState.CONNECT_FAILURE;
+                bluetoothLEConnectState = BluetoothLEConnectState.CONNECT_CONNECTED;
+            }
 
-                if (isMainThread) {
-                    Log.i(TAG, "Main Thread....");
-                }
-                //mBleConnectCallback.onConnectFail(BluetoothLEConnectState.CONNECT_FAILURE);
+            if (isMainThread) { Log.d(TAG, "Main Thread...."); }
+            if(handler != null) { handler.obtainMessage(status, gatt); }
+            if(bluetoothLECallback != null){
+                bluetoothLECallback.onConnectionState(bluetoothDevice, bluetoothLEConnectState);
             }
         }
 
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             super.onCharacteristicChanged(gatt, characteristic);
+            Log.d(TAG, "BluetoothGattCallback：onCharacteristicChanged "
+                    + '\n' + "currentThread: " + Thread.currentThread().getId());
+            Log.v(TAG, "Read: " + characteristic.getUuid().toString());
 
-            Log.i(TAG, "BluetoothGattCallback：onCharacteristicChanged ");
-            Log.e(TAG, "Read: " + characteristic.getUuid().toString());
-
-            final byte[] d = characteristic.getValue();
-            String hexaStr = bytes2String(d,d.length);
-            Log.e(TAG, "rcv=" + hexaStr);
-            //handler.sendMessage(handler.obtainMessage(1, hexaStr));
-
-            if (isMainThread) {
-                Log.d(TAG, "Main Thread....");
-            } else {
-                Log.d(TAG, "Callback Handler....");
+            if (isMainThread) { Log.d(TAG, "Main Thread...."); }
+            if(handler != null) { handler.obtainMessage(1,gatt); }
+            if(bluetoothLECallback != null) {
+                bluetoothLECallback.onChanged(bluetoothDevice, characteristic.getValue());
+                readBuffer.push(characteristic.getValue());
             }
         }
 
@@ -239,65 +231,57 @@ public class BluetoothLE {
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             super.onCharacteristicWrite(gatt, characteristic, status);
-            Log.i(TAG, "BluetoothGattCallback：onCharacteristicWrite "
-                    + '\n' + "status: " + status
+            Log.d(TAG, "BluetoothGattCallback：onCharacteristicWrite "
                     + '\n' + "currentThread: " + Thread.currentThread().getId());
+            Log.v(TAG, "write: " + characteristic.getUuid().toString());
 
-            if (isMainThread) {
-                Log.d(TAG, "Main Thread....");
-            } else {
-                Log.d(TAG, "Callback Handler....");
+            if (isMainThread) { Log.d(TAG, "Main Thread...."); }
+            if(handler != null) { handler.obtainMessage(status, gatt); }
+            if(bluetoothLECallback != null) {
+                bluetoothLECallback.onWrite(bluetoothDevice, status);
             }
-
-
-
         }
 
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             super.onCharacteristicRead(gatt, characteristic, status);
-            Log.i(TAG, "BluetoothGattCallback：onCharacteristicRead "
+            Log.d(TAG, "BluetoothGattCallback：onCharacteristicRead "
                     + '\n' + "status: " + status
                     + '\n' + "currentThread: " + Thread.currentThread().getId());
+            Log.v(TAG, "Read: " + characteristic.getUuid().toString());
 
-            if (isMainThread) {
-                Log.d(TAG, "Main Thread....");
-            } else {
-                Log.d(TAG, "Callback Handler....");
+            if (isMainThread) { Log.d(TAG, "Main Thread...."); }
+            if(handler != null) { handler.obtainMessage(status, gatt); }
+            if(bluetoothLECallback != null) {
+                bluetoothLECallback.onRead(bluetoothDevice, characteristic.getValue(), status);
             }
-
-            Log.e(TAG, "Read: " + characteristic.getUuid().toString());
-
         }
 
         @Override
         public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
             super.onReadRemoteRssi(gatt, rssi, status);
-
-            Log.i(TAG, "BluetoothGattCallback：onReadRemoteRssi "
+            Log.d(TAG, "BluetoothGattCallback：onReadRemoteRssi "
                     + '\n' + "rssi: " + rssi
                     + '\n' + "status: " + status
                     + '\n' + "currentThread: " + Thread.currentThread().getId());
+
+            if(bluetoothLECallback != null){
+                bluetoothLECallback.onReadRssi(bluetoothDevice, rssi, status);
+            }
         }
 
         @Override
         public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
             super.onMtuChanged(gatt, mtu, status);
-            Log.i(TAG, "BluetoothGattCallback：onMtuChanged "
+            Log.d(TAG, "BluetoothGattCallback：onMtuChanged "
                     + '\n' + "mtu: " + mtu
                     + '\n' + "status: " + status
                     + '\n' + "currentThread: " + Thread.currentThread().getId());
+
+            if(bluetoothLECallback != null){
+                bluetoothLECallback.onReadMtu(bluetoothDevice, mtu, status);
+            }
         }
     };
 
-
-
-    private String bytes2String(byte[] b, int count) {
-        ArrayList<String> result = new ArrayList<String>();
-        for (int i = 0; i < count; i++) {
-            String myInt = Integer.toHexString((int) (b[i] & 0xFF));
-            result.add(myInt);
-        }
-        return TextUtils.join(" ", result);
-    }
 }
