@@ -1,6 +1,4 @@
-package healthcare.cellumed.ble_test2.BluetoothLE;
-
-import java.util.Objects;
+package healthcare.cellumed.ble_test2.bluetoothle;
 
 /**
  * Created by ljh0928 on 2018. 1. 25..

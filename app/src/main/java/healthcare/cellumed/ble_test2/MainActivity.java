@@ -20,18 +20,12 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 
-import healthcare.cellumed.ble_test2.BluetoothLE.BLEDevice;
-import healthcare.cellumed.ble_test2.BluetoothLE.BleConnectCallback;
-import healthcare.cellumed.ble_test2.BluetoothLE.BleScanCallback;
-import healthcare.cellumed.ble_test2.BluetoothLE.BluetoothLEConnectState;
-import healthcare.cellumed.ble_test2.BluetoothLE.DeviceBluetoothLE;
-import healthcare.cellumed.ble_test2.BluetoothLE.ManageBluetoothLE;
-import healthcare.cellumed.ble_test2.Util.HexaDump;
+import healthcare.cellumed.ble_test2.bluetoothle.BLEDevice;
+import healthcare.cellumed.ble_test2.bluetoothle.BleConnectCallback;
+import healthcare.cellumed.ble_test2.bluetoothle.BleScanCallback;
+import healthcare.cellumed.ble_test2.bluetoothle.ManageBluetoothLE;
+import healthcare.cellumed.ble_test2.util.HexaDump;
 
 
 public class MainActivity extends AppCompatActivity {

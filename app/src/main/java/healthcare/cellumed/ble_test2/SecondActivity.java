@@ -1,7 +1,5 @@
 package healthcare.cellumed.ble_test2;
 
-import android.bluetooth.BluetoothDevice;
-import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -11,8 +9,8 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-import healthcare.cellumed.ble_test2.BluetoothLE.BLEDevice;
-import healthcare.cellumed.ble_test2.BluetoothLE.ManageBluetoothLE;
+import healthcare.cellumed.ble_test2.bluetoothle.BLEDevice;
+import healthcare.cellumed.ble_test2.bluetoothle.ManageBluetoothLE;
 
 public class SecondActivity extends AppCompatActivity {
 

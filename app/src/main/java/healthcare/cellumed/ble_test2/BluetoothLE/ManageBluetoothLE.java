@@ -1,4 +1,4 @@
-package healthcare.cellumed.ble_test2.BluetoothLE;
+package healthcare.cellumed.ble_test2.bluetoothle;
 
 import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
@@ -17,9 +17,9 @@ import java.util.HashMap;
 import java.util.UUID;
 
 import healthcare.cellumed.ble_test2.BleProfile;
-import healthcare.cellumed.ble_test2.Util.HexaDump;
-import healthcare.cellumed.ble_test2.Util.RingBuffer;
-import healthcare.cellumed.ble_test2.Util.RingByteBuffer;
+import healthcare.cellumed.ble_test2.util.HexaDump;
+import healthcare.cellumed.ble_test2.util.RingBuffer;
+import healthcare.cellumed.ble_test2.util.RingByteBuffer;
 
 /**
  * Created by ljh0928 on 2018. 1. 4..

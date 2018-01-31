@@ -1,4 +1,4 @@
-package healthcare.cellumed.ble_test2.BluetoothLE;
+package healthcare.cellumed.ble_test2.bluetoothle;
 
 /**
  * Created by pain0928 on 2018-01-20.

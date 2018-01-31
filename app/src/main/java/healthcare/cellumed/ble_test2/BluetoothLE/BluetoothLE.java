@@ -1,4 +1,4 @@
-package healthcare.cellumed.ble_test2.BluetoothLE;
+package healthcare.cellumed.ble_test2.bluetoothle;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -7,15 +7,13 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.os.Build;
 import android.os.Handler;
-import android.text.TextUtils;
 import android.util.Log;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.UUID;
 
 import healthcare.cellumed.ble_test2.BleProfile;
-import healthcare.cellumed.ble_test2.Util.RingByteBuffer;
+import healthcare.cellumed.ble_test2.util.RingByteBuffer;
 
 import static android.bluetooth.BluetoothDevice.TRANSPORT_LE;
 

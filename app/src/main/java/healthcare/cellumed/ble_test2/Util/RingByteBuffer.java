@@ -1,4 +1,4 @@
-package healthcare.cellumed.ble_test2.Util;
+package healthcare.cellumed.ble_test2.util;
 
 /**
  * Created by ljh0928 on 2018. 1. 25..

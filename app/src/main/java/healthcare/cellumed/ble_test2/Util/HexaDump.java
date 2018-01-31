@@ -1,4 +1,4 @@
-package healthcare.cellumed.ble_test2.Util;
+package healthcare.cellumed.ble_test2.util;
 
 import android.text.TextUtils;
 

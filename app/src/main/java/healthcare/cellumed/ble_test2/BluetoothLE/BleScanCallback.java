@@ -1,6 +1,4 @@
-package healthcare.cellumed.ble_test2.BluetoothLE;
-
-import android.bluetooth.BluetoothDevice;
+package healthcare.cellumed.ble_test2.bluetoothle;
 
 /**
  * Created by pain0928 on 2018-01-19.
